@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StarVente Guinée - E-commerce de Référence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        gold: '#FFD700',
+                        orange: '#FFA500',
+                        dark: '#181818'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-gold {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        }
+        .text-shadow {
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .hover-scale {
+            transition: transform 0.3s ease;
+        }
+        .hover-scale:hover {
+            transform: scale(1.05);
+        }
+        .cart-animation {
+            animation: cartBounce 0.6s ease-in-out;
+        }
+        @keyframes cartBounce {
+            0%, 20%, 53%, 80%, 100% { transform: translate3d(0,0,0); }
+            40%, 43% { transform: translate3d(0, -10px, 0); }
+            70% { transform: translate3d(0, -5px, 0); }
+            90% { transform: translate3d(0, -2px, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-dark transition-colors duration-300" x-data="ecommerceApp()">
+    <!-- Dark mode detection -->
+    <script>
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+    </script>
+
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-900 shadow-lg sticky top-0 z-50">
+        <!-- Top Bar -->
+        <div class="gradient-gold py-2 text-black text-sm">
+            <div class="container mx-auto px-4 flex justify-between items-center">
+                <span><i class="fas fa-phone mr-2"></i>+224 XXX XX XX XX</span>
+                <div class="flex space-x-4">
+                    <span><i class="fas fa-shipping-fast mr-2"></i>Livraison gratuite dès 500,000 GNF</span>
+                    <button @click="currentView = 'admin'" class="hover:text-gray-800 transition-colors">
+                        <i class="fas fa-user-cog mr-1"></i>Admin
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Header -->
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3 cursor-pointer" @click="currentView = 'home'">
+                    <div class="w-12 h-12 gradient-gold rounded-full flex items-center justify-center">
+                        <i class="fas fa-star text-2xl text-white text-shadow"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">StarVente</h1>
+                        <p class="text-sm text-gray-600 dark:text-gray-300">Guinée</p>
+                    </div>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="hidden md:flex flex-1 max-w-2xl mx-8">
+                    <div class="relative w-full">
+                        <input 
+                            type="text" 
+                            x-model="searchQuery"
+                            @input="searchProducts()"
+                            placeholder="Rechercher des produits..." 
+                            class="w-full text-base px-4 py-3 border-2 border-gray-300 rounded-l-lg focus:border-gold focus:outline-none dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                        >
+                        <button class="gradient-gold px-6 py-3 rounded-r-lg text-white font-semibold hover:opacity-90 transition-opacity">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        
+                        <!-- Search Suggestions -->
+                        <div x-show="searchResults.length > 0 && searchQuery.length > 0" 
+                             x-transition
+                             class="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg mt-1 shadow-lg z-50 max-h-96 overflow-y-auto">
+                            <template x-for="product in searchResults.slice(0, 5)" :key="product.id">
+                                <div @click="goToProduct(product)" class="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-600">
+                                    <img :src="product.image" :alt="product.name" class="w-12 h-12 rounded-lg object-cover mr-3">
+                                    <div>
+                                        <p class="font-medium text-gray-800 dark:text-white" x-text="product.name"></p>
+                                        <p class="text-gold font-semibold" x-text="formatPrice(product.price)"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Actions -->
+                <div class="flex items-center space-x-4">
+                    <!-- Account -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-gold transition-colors">
+                            <i class="fas fa-user text-lg"></i>
+                            <span class="hidden lg:block">Compte</span>
+                        </button>
+                        <div x-show="open" @click.away="open = false" x-transition 
+                             class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-2 z-50">
+                            <button @click="currentView = 'profile'; open = false" class="block w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-white">
+                                <i class="fas fa-user mr-2"></i>Mon Profil
+                            </button>
+                            <button @click="currentView = 'orders'; open = false" class="block w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-white">
+                                <i class="fas fa-box mr-2"></i>Mes Commandes
+                            </button>
+                            <hr class="my-2 border-gray-200 dark:border-gray-600">
+                            <button class="block w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-white">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Cart -->
+                    <button @click="currentView = 'cart'" 
+                            class="relative flex items-center space-x-2 text-gray-700 dark:text-gray-300 hover:text-gold transition-colors"
+                            :class="{ 'cart-animation': cartAnimation }">
+                        <i class="fas fa-shopping-cart text-lg"></i>
+                        <span class="hidden lg:block">Panier</span>
+                        <span x-show="cartItems.length > 0" 
+                              class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                              x-text="cartItems.length"></span>
+                    </button>
+
+                    <!-- Mobile Menu -->
+                    <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-bars text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Search -->
+            <div class="md:hidden mt-4">
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        x-model="searchQuery"
+                        @input="searchProducts()"
+                        placeholder="Rechercher..." 
+                        class="w-full text-base px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                    >
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+            <div class="container mx-auto px-4">
+                <div class="flex space-x-8 overflow-x-auto">
+                    <button @click="currentView = 'home'; selectedCategory = null" 
+                            :class="currentView === 'home' ? 'text-gold border-gold' : 'text-gray-700 dark:text-gray-300'" 
+                            class="py-4 border-b-2 border-transparent hover:text-gold transition-colors whitespace-nowrap">
+                        <i class="fas fa-home mr-2"></i>Accueil
+                    </button>
+                    <template x-for="category in categories" :key="category.id">
+                        <button @click="filterByCategory(category.id)" 
+                                :class="selectedCategory === category.id ? 'text-gold border-gold' : 'text-gray-700 dark:text-gray-300'" 
+                                class="py-4 border-b-2 border-transparent hover:text-gold transition-colors whitespace-nowrap"
+                                x-text="category.name"></button>
+                    </template>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Mobile Menu -->
+        <div x-show="mobileMenuOpen" 
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 transform -translate-y-2"
+             x-transition:enter-end="opacity-100 transform translate-y-0"
+             class="md:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+            <div class="px-4 py-2 space-y-2">
+                <button @click="currentView = 'profile'; mobileMenuOpen = false" class="block w-full text-left py-2 text-gray-800 dark:text-white">Mon Profil</button>
+                <button @click="currentView = 'orders'; mobileMenuOpen = false" class="block w-full text-left py-2 text-gray-800 dark:text-white">Mes Commandes</button>
+                <button @click="currentView = 'admin'; mobileMenuOpen = false" class="block w-full text-left py-2 text-gray-800 dark:text-white">Administration</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="min-h-screen">
+        <!-- HOME VIEW -->
+        <div x-show="currentView === 'home'" x-transition>
+            <!-- Hero Section -->
+            <section class="gradient-gold py-16 text-black">
+                <div class="container mx-auto px-4">
+                    <div class="max-w-4xl mx-auto text-center">
+                        <h2 class="text-4xl md:text-6xl font-bold mb-6 text-shadow">
+                            Bienvenue sur StarVente Guinée
+                        </h2>
+                        <p class="text-xl md:text-2xl mb-8 opacity-90">
+                            Votre marketplace de référence en Guinée
+                        </p>
+                        <button @click="currentView = 'products'" 
+                                class="bg-black text-gold px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-800 transition-colors shadow-lg">
+                            Découvrir nos produits
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Categories Section -->
+            <section class="py-16 bg-white dark:bg-gray-900">
+                <div class="container mx-auto px-4">
+                    <h3 class="text-3xl font-bold text-center mb-12 text-gray-800 dark:text-white">Nos Catégories</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <template x-for="category in categories" :key="category.id">
+                            <div @click="filterByCategory(category.id)" 
+                                 class="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 text-center cursor-pointer hover-scale hover:shadow-lg transition-all">
+                                <div class="text-4xl mb-4" x-text="category.icon"></div>
+                                <h4 class="font-semibold text-gray-800 dark:text-white" x-text="category.name"></h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-2" x-text="category.count + ' produits'"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Featured Products -->
+            <section class="py-16 bg-gray-50 dark:bg-dark">
+                <div class="container mx-auto px-4">
+                    <h3 class="text-3xl font-bold text-center mb-12 text-gray-800 dark:text-white">Produits Vedettes</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <template x-for="product in featuredProducts" :key="product.id">
+                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover-scale transition-all">
+                                <div class="relative">
+                                    <img :src="product.image" :alt="product.name" class="w-full h-48 object-cover">
+                                    <div x-show="product.discount" class="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">
+                                        -<span x-text="product.discount"></span>%
+                                    </div>
+                                </div>
+                                <div class="p-4">
+                                    <h4 class="font-semibold text-gray-800 dark:text-white mb-2" x-text="product.name"></h4>
+                                    <p class="text-gray-600 dark:text-gray-400 text-sm mb-3" x-text="product.description"></p>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <span class="text-gold font-bold text-lg" x-text="formatPrice(product.price)"></span>
+                                            <span x-show="product.originalPrice" class="text-gray-500 line-through ml-2" x-text="formatPrice(product.originalPrice)"></span>
+                                        </div>
+                                        <button @click="addToCart(product)" 
+                                                class="bg-gold hover:bg-orange text-white p-2 rounded-lg transition-colors">
+                                            <i class="fas fa-cart-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- PRODUCTS VIEW -->
+        <div x-show="currentView === 'products'" x-transition>
+            <div class="container mx-auto px-4 py-8">
+                <div class="flex flex-col lg:flex-row gap-8">
+                    <!-- Filters Sidebar -->
+                    <div class="lg:w-1/4">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                            <h3 class="text-xl font-semibold mb-6 text-gray-800 dark:text-white">Filtres</h3>
+                            
+                            <!-- Price Range -->
+                            <div class="mb-6">
+                                <h4 class="font-semibold mb-3 text-gray-700 dark:text-gray-300">Prix</h4>
+                                <div class="space-y-2">
+                                    <div class="flex items-center">
+                                        <input type="radio" name="price" value="all" x-model="priceFilter" id="price-all" class="mr-2">
+                                        <label for="price-all" class="text-gray-600 dark:text-gray-400">Tous</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input type="radio" name="price" value="0-100000" x-model="priceFilter" id="price-1" class="mr-2">
+                                        <label for="price-1" class="text-gray-600 dark:text-gray-400">0 - 100,000 GNF</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input type="radio" name="price" value="100000-500000" x-model="priceFilter" id="price-2" class="mr-2">
+                                        <label for="price-2" class="text-gray-600 dark:text-gray-400">100,000 - 500,000 GNF</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input type="radio" name="price" value="500000-1000000" x-model="priceFilter" id="price-3" class="mr-2">
+                                        <label for="price-3" class="text-gray-600 dark:text-gray-400">500,000 - 1,000,000 GNF</label>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input type="radio" name="price" value="1000000+" x-model="priceFilter" id="price-4" class="mr-2">
+                                        <label for="price-4" class="text-gray-600 dark:text-gray-400">1,000,000+ GNF</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Brands -->
+                            <div class="mb-6">
+                                <h4 class="font-semibold mb-3 text-gray-700 dark:text-gray-300">Marques</h4>
+                                <template x-for="brand in brands" :key="brand">
+                                    <div class="flex items-center mb-2">
+                                        <input type="checkbox" :value="brand" x-model="brandFilters" :id="'brand-' + brand" class="mr-2">
+                                        <label :for="'brand-' + brand" class="text-gray-600 dark:text-gray-400" x-text="brand"></label>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Reset Filters -->
+                            <button @click="resetFilters()" class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors">
+                                Réinitialiser
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Products Grid -->
+                    <div class="lg:w-3/4">
+                        <!-- Sort Options -->
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">
+                                Produits
+                                <span x-show="selectedCategory" class="text-lg text-gray-600 dark:text-gray-400">
+                                    - <span x-text="getCategoryName(selectedCategory)"></span>
+                                </span>
+                            </h2>
+                            <div class="flex items-center space-x-4">
+                                <select x-model="sortBy" class="text-base border border-gray-300 rounded-lg px-3 py-2 dark:bg-gray-800 dark:border-gray-600 dark:text-white">
+                                    <option value="name">Nom</option>
+                                    <option value="price">Prix croissant</option>
+                                    <option value="price-desc">Prix décroissant</option>
+                                    <option value="newest">Nouveautés</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Products Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <template x-for="product in filteredProducts" :key="product.id">
+                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover-scale transition-all">
+                                    <div class="relative">
+                                        <img :src="product.image" :alt="product.name" class="w-full h-48 object-cover">
+                                        <div x-show="product.discount" class="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">
+                                            -<span x-text="product.discount"></span>%
+                                        </div>
+                                        <button @click="toggleWishlist(product)" 
+                                                class="absolute top-2 right-2 p-2 rounded-full bg-white bg-opacity-80 hover:bg-opacity-100 transition-all">
+                                            <i :class="product.wishlist ? 'fas fa-heart text-red-500' : 'far fa-heart text-gray-600'"></i>
+                                        </button>
+                                    </div>
+                                    <div class="p-4">
+                                        <h4 class="font-semibold text-gray-800 dark:text-white mb-2" x-text="product.name"></h4>
+                                        <p class="text-gray-600 dark:text-gray-400 text-sm mb-3" x-text="product.description"></p>
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div>
+                                                <span class="text-gold font-bold text-lg" x-text="formatPrice(product.price)"></span>
+                                                <span x-show="product.originalPrice" class="text-gray-500 line-through ml-2" x-text="formatPrice(product.originalPrice)"></span>
+                                            </div>
+                                            <span class="text-sm text-gray-500 dark:text-gray-400" x-text="product.brand"></span>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <button @click="viewProduct(product)" 
+                                                    class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors">
+                                                Voir
+                                            </button>
+                                            <button @click="addToCart(product)" 
+                                                    class="flex-1 bg-gold hover:bg-orange text-white py-2 rounded-lg transition-colors">
+                                                Ajouter
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- No Products Message -->
+                        <div x-show="filteredProducts.length === 0" class="text-center py-12">
+                            <i class="fas fa-search text-4xl text-gray-400 mb-4"></i>
+                            <h3 class="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">Aucun produit trouvé</h3>
+                            <p class="text-gray-500 dark:text-gray-500">Essayez de modifier vos filtres</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRODUCT DETAIL VIEW -->
+        <div x-show="currentView === 'product-detail'" x-transition>
+            <div x-show="selectedProduct" class="container mx-auto px-4 py-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <!-- Product Images -->
+                    <div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg">
+                            <img :src="selectedProduct?.image" :alt="selectedProduct?.name" class="w-full h-96 object-cover">
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 mt-4">
+                            <template x-for="i in 4" :key="i">
+                                <img :src="selectedProduct?.image" :alt="selectedProduct?.name" 
+                                     class="w-full h-20 object-cover rounded-lg border-2 border-transparent hover:border-gold cursor-pointer">
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Product Info -->
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-4" x-text="selectedProduct?.name"></h1>
+                        <div class="flex items-center mb-4">
+                            <div class="flex text-yellow-400">
+                                <template x-for="i in 5" :key="i">
+                                    <i class="fas fa-star"></i>
+                                </template>
+                            </div>
+                            <span class="ml-2 text-gray-600 dark:text-gray-400">(24 avis)</span>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <span class="text-3xl font-bold text-gold" x-text="formatPrice(selectedProduct?.price)"></span>
+                            <span x-show="selectedProduct?.originalPrice" class="text-xl text-gray-500 line-through ml-3" x-text="formatPrice(selectedProduct?.originalPrice)"></span>
+                        </div>
+
+                        <p class="text-gray-700 dark:text-gray-300 mb-6" x-text="selectedProduct?.description + ' Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'"></p>
+
+                        <!-- Variants -->
+                        <div class="mb-6">
+                            <h3 class="font-semibold text-gray-800 dark:text-white mb-3">Couleur</h3>
+                            <div class="flex space-x-2">
+                                <template x-for="color in ['Rouge', 'Bleu', 'Noir', 'Blanc']" :key="color">
+                                    <button class="w-8 h-8 rounded-full border-2 border-gray-300 hover:border-gold transition-colors"
+                                            :class="{ 'bg-red-500': color === 'Rouge', 'bg-blue-500': color === 'Bleu', 'bg-black': color === 'Noir', 'bg-white': color === 'Blanc' }"></button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <h3 class="font-semibold text-gray-800 dark:text-white mb-3">Taille</h3>
+                            <div class="flex space-x-2">
+                                <template x-for="size in ['S', 'M', 'L', 'XL']" :key="size">
+                                    <button class="px-4 py-2 border border-gray-300 rounded-lg hover:border-gold hover:bg-gold hover:text-white transition-colors dark:border-gray-600 dark:text-white"
+                                            x-text="size"></button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Quantity -->
+                        <div class="mb-6">
+                            <h3 class="font-semibold text-gray-800 dark:text-white mb-3">Quantité</h3>
+                            <div class="flex items-center space-x-3">
+                                <button @click="productQuantity = Math.max(1, productQuantity - 1)" 
+                                        class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <span class="text-xl font-semibold w-12 text-center text-gray-800 dark:text-white" x-text="productQuantity"></span>
+                                <button @click="productQuantity++" 
+                                        class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex space-x-4 mb-6">
+                            <button @click="addToCart(selectedProduct, productQuantity)" 
+                                    class="flex-1 bg-gold hover:bg-orange text-white py-3 rounded-lg font-semibold transition-colors">
+                                <i class="fas fa-cart-plus mr-2"></i>Ajouter au panier
+                            </button>
+                            <button class="px-6 py-3 border border-gold text-gold hover:bg-gold hover:text-white rounded-lg transition-colors">
+                                <i class="fas fa-heart"></i>
+                            </button>
+                        </div>
+
+                        <!-- Product Details -->
+                        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                            <h3 class="font-semibold text-gray-800 dark:text-white mb-4">Détails du produit</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Marque:</span>
+                                    <span class="text-gray-800 dark:text-white" x-text="selectedProduct?.brand"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">SKU:</span>
+                                    <span class="text-gray-800 dark:text-white">SV-001</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Disponibilité:</span>
+                                    <span class="text-green-600">En stock</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Livraison:</span>
+                                    <span class="text-gray-800 dark:text-white">2-3 jours</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Related Products -->
+                <div class="mt-16">
+                    <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-8">Produits similaires</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <template x-for="product in products.slice(0, 4)" :key="product.id">
+                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover-scale transition-all">
+                                <img :src="product.image" :alt="product.name" class="w-full h-48 object-cover">
+                                <div class="p-4">
+                                    <h4 class="font-semibold text-gray-800 dark:text-white mb-2" x-text="product.name"></h4>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-gold font-bold" x-text="formatPrice(product.price)"></span>
+                                        <button @click="addToCart(product)" class="bg-gold text-white p-2 rounded-lg hover:bg-orange transition-colors">
+                                            <i class="fas fa-cart-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CART VIEW -->
+        <div x-show="currentView === 'cart'" x-transition>
+            <div class="container mx-auto px-4 py-8">
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">Mon Panier</h2>
+                
+                <div x-show="cartItems.length === 0" class="text-center py-16">
+                    <i class="fas fa-shopping-cart text-6xl text-gray-400 mb-6"></i>
+                    <h3 class="text-2xl font-semibold text-gray-600 dark:text-gray-400 mb-4">Votre panier est vide</h3>
+                    <button @click="currentView = 'products'" class="bg-gold hover:bg-orange text-white px-8 py-3 rounded-lg font-semibold transition-colors">
+                        Continuer les achats
+                    </button>
+                </div>
+
+                <div x-show="cartItems.length > 0" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Cart Items -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+                            <template x-for="(item, index) in cartItems" :key="item.id">
+                                <div class="flex items-center p-6 border-b border-gray-200 dark:border-gray-700">
+                                    <img :src="item.image" :alt="item.name" class="w-20 h-20 rounded-lg object-cover mr-4">
+                                    <div class="flex-1">
+                                        <h4 class="font-semibold text-gray-800 dark:text-white" x-text="item.name"></h4>
+                                        <p class="text-gray-600 dark:text-gray-400" x-text="item.brand"></p>
+                                        <p class="text-gold font-semibold" x-text="formatPrice(item.price)"></p>
+                                    </div>
+                                    <div class="flex items-center space-x-3">
+                                        <button @click="updateCartQuantity(index, item.quantity - 1)" 
+                                                class="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                            <i class="fas fa-minus text-sm"></i>
+                                        </button>
+                                        <span class="w-8 text-center font-semibold text-gray-800 dark:text-white" x-text="item.quantity"></span>
+                                        <button @click="updateCartQuantity(index, item.quantity + 1)" 
+                                                class="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                            <i class="fas fa-plus text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <div class="ml-6 text-right">
+                                        <p class="font-semibold text-gray-800 dark:text-white" x-text="formatPrice(item.price * item.quantity)"></p>
+                                        <button @click="removeFromCart(index)" class="text-red-500 hover:text-red-700 transition-colors">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Order Summary -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sticky top-24">
+                            <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Résumé de la commande</h3>
+                            
+                            <div class="space-y-3 mb-6">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Sous-total:</span>
+                                    <span class="font-semibold text-gray-800 dark:text-white" x-text="formatPrice(cartTotal)"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Livraison:</span>
+                                    <span class="font-semibold text-gray-800 dark:text-white" x-text="cartTotal >= 500000 ? 'Gratuite' : formatPrice(50000)"></span>
+                                </div>
+                                <hr class="border-gray-200 dark:border-gray-600">
+                                <div class="flex justify-between text-lg">
+                                    <span class="font-semibold text-gray-800 dark:text-white">Total:</span>
+                                    <span class="font-bold text-gold" x-text="formatPrice(cartTotal + (cartTotal >= 500000 ? 0 : 50000))"></span>
+                                </div>
+                            </div>
+
+                            <!-- Promo Code -->
+                            <div class="mb-6">
+                                <div class="flex">
+                                    <input type="text" 
+                                           x-model="promoCode"
+                                           placeholder="Code promo" 
+                                           class="flex-1 text-base px-3 py-2 border border-gray-300 rounded-l-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <button @click="applyPromoCode()" 
+                                            class="bg-gold hover:bg-orange text-white px-4 py-2 rounded-r-lg transition-colors">
+                                        Appliquer
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button @click="currentView = 'checkout'" 
+                                    class="w-full bg-gold hover:bg-orange text-white py-3 rounded-lg font-semibold transition-colors mb-4">
+                                Procéder au paiement
+                            </button>
+                            
+                            <button @click="currentView = 'products'" 
+                                    class="w-full bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors">
+                                Continuer les achats
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHECKOUT VIEW -->
+        <div x-show="currentView === 'checkout'" x-transition>
+            <div class="container mx-auto px-4 py-8">
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">Finaliser la commande</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Checkout Form -->
+                    <div class="space-y-6">
+                        <!-- Shipping Info -->
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                            <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Informations de livraison</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Prénom</label>
+                                    <input type="text" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Nom</label>
+                                    <input type="text" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Adresse</label>
+                                    <input type="text" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Ville</label>
+                                    <select class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                        <option>Conakry</option>
+                                        <option>Kankan</option>
+                                        <option>Kindia</option>
+                                        <option>Labé</option>
+                                        <option>N'Zérékoré</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Téléphone</label>
+                                    <input type="tel" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                            <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Mode de paiement</h3>
+                            <div class="space-y-4">
+                                <div class="flex items-center p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-gold transition-colors">
+                                    <input type="radio" name="payment" value="orange" x-model="paymentMethod" id="orange" class="mr-3">
+                                    <label for="orange" class="flex items-center cursor-pointer">
+                                        <span class="text-2xl mr-3">📱</span>
+                                        <div>
+                                            <p class="font-semibold text-gray-800 dark:text-white">Orange Money</p>
+                                            <p class="text-sm text-gray-600 dark:text-gray-400">Paiement mobile Orange</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="flex items-center p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-gold transition-colors">
+                                    <input type="radio" name="payment" value="mtn" x-model="paymentMethod" id="mtn" class="mr-3">
+                                    <label for="mtn" class="flex items-center cursor-pointer">
+                                        <span class="text-2xl mr-3">📲</span>
+                                        <div>
+                                            <p class="font-semibold text-gray-800 dark:text-white">MTN Mobile Money</p>
+                                            <p class="text-sm text-gray-600 dark:text-gray-400">Paiement mobile MTN</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="flex items-center p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-gold transition-colors">
+                                    <input type="radio" name="payment" value="card" x-model="paymentMethod" id="card" class="mr-3">
+                                    <label for="card" class="flex items-center cursor-pointer">
+                                        <span class="text-2xl mr-3">💳</span>
+                                        <div>
+                                            <p class="font-semibold text-gray-800 dark:text-white">Carte bancaire</p>
+                                            <p class="text-sm text-gray-600 dark:text-gray-400">Visa, Mastercard</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="flex items-center p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-gold transition-colors">
+                                    <input type="radio" name="payment" value="cod" x-model="paymentMethod" id="cod" class="mr-3">
+                                    <label for="cod" class="flex items-center cursor-pointer">
+                                        <span class="text-2xl mr-3">💰</span>
+                                        <div>
+                                            <p class="font-semibold text-gray-800 dark:text-white">Paiement à la livraison</p>
+                                            <p class="text-sm text-gray-600 dark:text-gray-400">Payez en espèces</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Summary -->
+                    <div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sticky top-24">
+                            <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Récapitulatif</h3>
+                            
+                            <!-- Cart Items -->
+                            <div class="space-y-3 mb-6 max-h-60 overflow-y-auto">
+                                <template x-for="item in cartItems" :key="item.id">
+                                    <div class="flex items-center justify-between py-2">
+                                        <div class="flex items-center">
+                                            <img :src="item.image" :alt="item.name" class="w-12 h-12 rounded-lg object-cover mr-3">
+                                            <div>
+                                                <p class="font-medium text-gray-800 dark:text-white text-sm" x-text="item.name"></p>
+                                                <p class="text-gray-600 dark:text-gray-400 text-xs">Qté: <span x-text="item.quantity"></span></p>
+                                            </div>
+                                        </div>
+                                        <span class="font-semibold text-gray-800 dark:text-white" x-text="formatPrice(item.price * item.quantity)"></span>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <div class="space-y-3 mb-6">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Sous-total:</span>
+                                    <span class="font-semibold text-gray-800 dark:text-white" x-text="formatPrice(cartTotal)"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Livraison:</span>
+                                    <span class="font-semibold text-gray-800 dark:text-white" x-text="cartTotal >= 500000 ? 'Gratuite' : formatPrice(50000)"></span>
+                                </div>
+                                <hr class="border-gray-200 dark:border-gray-600">
+                                <div class="flex justify-between text-lg">
+                                    <span class="font-semibold text-gray-800 dark:text-white">Total:</span>
+                                    <span class="font-bold text-gold" x-text="formatPrice(cartTotal + (cartTotal >= 500000 ? 0 : 50000))"></span>
+                                </div>
+                            </div>
+
+                            <button @click="processOrder()" 
+                                    class="w-full bg-gold hover:bg-orange text-white py-3 rounded-lg font-semibold transition-colors">
+                                <i class="fas fa-lock mr-2"></i>Confirmer la commande
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN VIEW -->
+        <div x-show="currentView === 'admin'" x-transition>
+            <div class="min-h-screen bg-gray-100 dark:bg-dark">
+                <!-- Admin Header -->
+                <div class="bg-white dark:bg-gray-800 shadow-lg">
+                    <div class="container mx-auto px-4 py-4">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Administration StarVente</h2>
+                            <button @click="currentView = 'home'" class="text-gray-600 dark:text-gray-400 hover:text-gold transition-colors">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="container mx-auto px-4 py-8">
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                        <!-- Admin Sidebar -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                <nav class="space-y-2">
+                                    <button @click="adminView = 'dashboard'" 
+                                            :class="adminView === 'dashboard' ? 'bg-gold text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                                            class="w-full text-left px-4 py-3 rounded-lg transition-colors">
+                                        <i class="fas fa-chart-bar mr-3"></i>Tableau de bord
+                                    </button>
+                                    <button @click="adminView = 'products'" 
+                                            :class="adminView === 'products' ? 'bg-gold text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                                            class="w-full text-left px-4 py-3 rounded-lg transition-colors">
+                                        <i class="fas fa-box mr-3"></i>Produits
+                                    </button>
+                                    <button @click="adminView = 'orders'" 
+                                            :class="adminView === 'orders' ? 'bg-gold text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                                            class="w-full text-left px-4 py-3 rounded-lg transition-colors">
+                                        <i class="fas fa-shopping-cart mr-3"></i>Commandes
+                                    </button>
+                                    <button @click="adminView = 'customers'" 
+                                            :class="adminView === 'customers' ? 'bg-gold text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                                            class="w-full text-left px-4 py-3 rounded-lg transition-colors">
+                                        <i class="fas fa-users mr-3"></i>Clients
+                                    </button>
+                                    <button @click="adminView = 'settings'" 
+                                            :class="adminView === 'settings' ? 'bg-gold text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                                            class="w-full text-left px-4 py-3 rounded-lg transition-colors">
+                                        <i class="fas fa-cog mr-3"></i>Paramètres
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+
+                        <!-- Admin Content -->
+                        <div class="lg:col-span-3">
+                            <!-- Dashboard -->
+                            <div x-show="adminView === 'dashboard'">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                        <div class="flex items-center">
+                                            <div class="bg-blue-500 text-white p-3 rounded-lg mr-4">
+                                                <i class="fas fa-shopping-cart text-xl"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-gray-600 dark:text-gray-400 text-sm">Commandes</p>
+                                                <p class="text-2xl font-bold text-gray-800 dark:text-white">127</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                        <div class="flex items-center">
+                                            <div class="bg-green-500 text-white p-3 rounded-lg mr-4">
+                                                <i class="fas fa-dollar-sign text-xl"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-gray-600 dark:text-gray-400 text-sm">Revenus</p>
+                                                <p class="text-2xl font-bold text-gray-800 dark:text-white">2.5M GNF</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                        <div class="flex items-center">
+                                            <div class="bg-yellow-500 text-white p-3 rounded-lg mr-4">
+                                                <i class="fas fa-box text-xl"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-gray-600 dark:text-gray-400 text-sm">Produits</p>
+                                                <p class="text-2xl font-bold text-gray-800 dark:text-white" x-text="products.length"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                        <div class="flex items-center">
+                                            <div class="bg-purple-500 text-white p-3 rounded-lg mr-4">
+                                                <i class="fas fa-users text-xl"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-gray-600 dark:text-gray-400 text-sm">Clients</p>
+                                                <p class="text-2xl font-bold text-gray-800 dark:text-white">89</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Recent Orders -->
+                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                    <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Commandes récentes</h3>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full">
+                                            <thead>
+                                                <tr class="border-b border-gray-200 dark:border-gray-600">
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Commande</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Client</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Total</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Statut</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class="border-b border-gray-100 dark:border-gray-700">
+                                                    <td class="py-3 text-gray-800 dark:text-white">#SV001</td>
+                                                    <td class="py-3 text-gray-800 dark:text-white">Mamadou Diallo</td>
+                                                    <td class="py-3 text-gray-800 dark:text-white">250,000 GNF</td>
+                                                    <td class="py-3">
+                                                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">Livrée</span>
+                                                    </td>
+                                                </tr>
+                                                <tr class="border-b border-gray-100 dark:border-gray-700">
+                                                    <td class="py-3 text-gray-800 dark:text-white">#SV002</td>
+                                                    <td class="py-3 text-gray-800 dark:text-white">Fatoumata Camara</td>
+                                                    <td class="py-3 text-gray-800 dark:text-white">180,000 GNF</td>
+                                                    <td class="py-3">
+                                                        <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-sm">En cours</span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="py-3 text-gray-800 dark:text-white">#SV003</td>
+                                                    <td class="py-3 text-gray-800 dark:text-white">Alpha Condé</td>
+                                                    <td class="py-3 text-gray-800 dark:text-white">420,000 GNF</td>
+                                                    <td class="py-3">
+                                                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">Confirmée</span>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Products Management -->
+                            <div x-show="adminView === 'products'">
+                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                    <div class="flex justify-between items-center mb-6">
+                                        <h3 class="text-xl font-semibold text-gray-800 dark:text-white">Gestion des Produits</h3>
+                                        <button @click="showAddProduct = true" class="bg-gold hover:bg-orange text-white px-4 py-2 rounded-lg transition-colors">
+                                            <i class="fas fa-plus mr-2"></i>Ajouter un produit
+                                        </button>
+                                    </div>
+
+                                    <!-- Products Table -->
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full">
+                                            <thead>
+                                                <tr class="border-b border-gray-200 dark:border-gray-600">
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Image</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Nom</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Catégorie</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Prix</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Stock</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-for="product in products.slice(0, 10)" :key="product.id">
+                                                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                        <td class="py-3">
+                                                            <img :src="product.image" :alt="product.name" class="w-12 h-12 rounded-lg object-cover">
+                                                        </td>
+                                                        <td class="py-3 text-gray-800 dark:text-white" x-text="product.name"></td>
+                                                        <td class="py-3 text-gray-800 dark:text-white" x-text="getCategoryName(product.category)"></td>
+                                                        <td class="py-3 text-gray-800 dark:text-white" x-text="formatPrice(product.price)"></td>
+                                                        <td class="py-3 text-gray-800 dark:text-white">15</td>
+                                                        <td class="py-3">
+                                                            <div class="flex space-x-2">
+                                                                <button class="text-blue-500 hover:text-blue-700 transition-colors">
+                                                                    <i class="fas fa-edit"></i>
+                                                                </button>
+                                                                <button class="text-red-500 hover:text-red-700 transition-colors">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Add Product Modal -->
+                                <div x-show="showAddProduct" 
+                                     x-transition:enter="transition ease-out duration-300"
+                                     x-transition:enter-start="opacity-0"
+                                     x-transition:enter-end="opacity-100"
+                                     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md mx-4">
+                                        <div class="flex justify-between items-center mb-6">
+                                            <h3 class="text-xl font-semibold text-gray-800 dark:text-white">Ajouter un produit</h3>
+                                            <button @click="showAddProduct = false" class="text-gray-500 hover:text-gray-700">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        <form class="space-y-4">
+                                            <div>
+                                                <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Nom du produit</label>
+                                                <input type="text" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Catégorie</label>
+                                                <select class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                                    <template x-for="category in categories" :key="category.id">
+                                                        <option :value="category.id" x-text="category.name"></option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Prix (GNF)</label>
+                                                <input type="number" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Description</label>
+                                                <textarea rows="3" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+                                            </div>
+                                            <div class="flex space-x-3">
+                                                <button type="button" @click="showAddProduct = false" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg transition-colors">
+                                                    Annuler
+                                                </button>
+                                                <button type="submit" class="flex-1 bg-gold hover:bg-orange text-white py-2 rounded-lg transition-colors">
+                                                    Ajouter
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Orders Management -->
+                            <div x-show="adminView === 'orders'">
+                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                    <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Gestion des Commandes</h3>
+                                    <div class="space-y-4">
+                                        <template x-for="i in 5" :key="i">
+                                            <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                                                <div class="flex justify-between items-start">
+                                                    <div>
+                                                        <h4 class="font-semibold text-gray-800 dark:text-white">Commande #SV00<span x-text="i"></span></h4>
+                                                        <p class="text-gray-600 dark:text-gray-400">Client: Mamadou Diallo</p>
+                                                        <p class="text-gold font-semibold">Total: 250,000 GNF</p>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <select class="text-base px-3 py-1 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                                            <option>En attente</option>
+                                                            <option>Confirmée</option>
+                                                            <option>Expédiée</option>
+                                                            <option>Livrée</option>
+                                                        </select>
+                                                        <p class="text-sm text-gray-500 mt-1">25 Nov 2024</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Customers Management -->
+                            <div x-show="adminView === 'customers'">
+                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                    <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Gestion des Clients</h3>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full">
+                                            <thead>
+                                                <tr class="border-b border-gray-200 dark:border-gray-600">
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Nom</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Email</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Téléphone</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Commandes</th>
+                                                    <th class="text-left py-3 text-gray-600 dark:text-gray-400">Total dépensé</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-for="customer in customers" :key="customer.id">
+                                                    <tr class="border-b border-gray-100 dark:border-gray-700">
+                                                        <td class="py-3 text-gray-800 dark:text-white" x-text="customer.name"></td>
+                                                        <td class="py-3 text-gray-800 dark:text-white" x-text="customer.email"></td>
+                                                        <td class="py-3 text-gray-800 dark:text-white" x-text="customer.phone"></td>
+                                                        <td class="py-3 text-gray-800 dark:text-white" x-text="customer.orders"></td>
+                                                        <td class="py-3 text-gray-800 dark:text-white" x-text="formatPrice(customer.total)"></td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Settings -->
+                            <div x-show="adminView === 'settings'">
+                                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                                    <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Paramètres</h3>
+                                    <div class="space-y-6">
+                                        <div>
+                                            <h4 class="font-semibold text-gray-800 dark:text-white mb-3">Informations générales</h4>
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Nom du site</label>
+                                                    <input type="text" value="StarVente Guinée" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Email de contact</label>
+                                                    <input type="email" value="contact@starvente.gn" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div>
+                                            <h4 class="font-semibold text-gray-800 dark:text-white mb-3">Frais de livraison</h4>
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Frais standard (GNF)</label>
+                                                    <input type="number" value="50000" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Livraison gratuite à partir de (GNF)</label>
+                                                    <input type="number" value="500000" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button class="bg-gold hover:bg-orange text-white px-6 py-3 rounded-lg transition-colors">
+                                            Sauvegarder les paramètres
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROFILE VIEW -->
+        <div x-show="currentView === 'profile'" x-transition>
+            <div class="container mx-auto px-4 py-8">
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">Mon Profil</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-2">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                            <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Informations personnelles</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Prénom</label>
+                                    <input type="text" value="Mamadou" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Nom</label>
+                                    <input type="text" value="Diallo" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Email</label>
+                                    <input type="email" value="mamadou.diallo@example.com" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Téléphone</label>
+                                    <input type="tel" value="+224 XXX XX XX XX" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 dark:text-gray-300 font-medium mb-2">Date de naissance</label>
+                                    <input type="date" class="w-full text-base px-3 py-2 border border-gray-300 rounded-lg focus:border-gold focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                </div>
+                            </div>
+                            <button class="mt-6 bg-gold hover:bg-orange text-white px-6 py-3 rounded-lg transition-colors">
+                                Mettre à jour
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                            <h3 class="text-xl font-semibold text-gray-800 dark:text-white mb-6">Statistiques</h3>
+                            <div class="space-y-4">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Commandes totales:</span>
+                                    <span class="font-semibold text-gray-800 dark:text-white">12</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Total dépensé:</span>
+                                    <span class="font-semibold text-gold">1,250,000 GNF</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Points fidélité:</span>
+                                    <span class="font-semibold text-gray-800 dark:text-white">2,450</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Membre depuis:</span>
+                                    <span class="font-semibold text-gray-800 dark:text-white">Jan 2024</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ORDERS VIEW -->
+        <div x-show="currentView === 'orders'" x-transition>
+            <div class="container mx-auto px-4 py-8">
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">Mes Commandes</h2>
+                <div class="space-y-6">
+                    <template x-for="i in 3" :key="i">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Commande #SV00<span x-text="i"></span></h3>
+                                    <p class="text-gray-600 dark:text-gray-400">Passée le 25 novembre 2024</p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">Livrée</span>
+                                    <p class="text-gold font-semibold mt-1">250,000 GNF</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <template x-for="j in 2" :key="j">
+                                    <div class="flex items-center space-x-3">
+                                        <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&h=100&fit=crop" class="w-16 h-16 rounded-lg object-cover">
+                                        <div>
+                                            <p class="font-medium text-gray-800 dark:text-white">Produit <span x-text="j"></span></p>
+                                            <p class="text-gray-600 dark:text-gray-400">Qté: 1</p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="mt-4 flex space-x-3">
+                                <button class="bg-gold hover:bg-orange text-white px-4 py-2 rounded-lg transition-colors">
+                                    Voir les détails
+                                </button>
+                                <button class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                    Télécharger la facture
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-10 h-10 gradient-gold rounded-full flex items-center justify-center">
+                            <i class="fas fa-star text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold">StarVente</h3>
+                            <p class="text-gray-400">Guinée</p>
+                        </div>
+                    </div>
+                    <p class="text-gray-400">Votre marketplace de référence en Guinée pour tous vos achats en ligne.</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Navigation</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-gold transition-colors">Accueil</a></li>
+                        <li><a href="#" class="hover:text-gold transition-colors">Produits</a></li>
+                        <li><a href="#" class="hover:text-gold transition-colors">Catégories</a></li>
+                        <li><a href="#" class="hover:text-gold transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Service Client</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-gold transition-colors">FAQ</a></li>
+                        <li><a href="#" class="hover:text-gold transition-colors">Livraison</a></li>
+                        <li><a href="#" class="hover:text-gold transition-colors">Retours</a></li>
+                        <li><a href="#" class="hover:text-gold transition-colors">Support</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Contact</h4>
+                    <div class="space-y-2 text-gray-400">
+                        <p><i class="fas fa-phone mr-2"></i>+224 XXX XX XX XX</p>
+                        <p><i class="fas fa-envelope mr-2"></i>contact@starvente.gn</p>
+                        <p><i class="fas fa-map-marker-alt mr-2"></i>Conakry, Guinée</p>
+                    </div>
+                    <div class="flex space-x-4 mt-4">
+                        <a href="#" class="text-gray-400 hover:text-gold transition-colors">
+                            <i class="fab fa-facebook text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-gold transition-colors">
+                            <i class="fab fa-twitter text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-gold transition-colors">
+                            <i class="fab fa-instagram text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 StarVente Guinée. Tous droits réservés.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Success Message -->
+    <div x-show="showSuccessMessage" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 transform translate-y-2"
+         x-transition:enter-end="opacity-100 transform translate-y-0"
+         class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span x-text="successMessage"></span>
+        </div>
+    </div>
+
+    <script>
+        function ecommerceApp() {
+            return {
+                // State
+                currentView: 'home',
+                adminView: 'dashboard',
+                selectedCategory: null,
+                selectedProduct: null,
+                productQuantity: 1,
+                searchQuery: '',
+                searchResults: [],
+                mobileMenuOpen: false,
+                cartAnimation: false,
+                showSuccessMessage: false,
+                successMessage: '',
+                showAddProduct: false,
+                
+                // Filters
+                priceFilter: 'all',
+                brandFilters: [],
+                sortBy: 'name',
+                
+                // Cart
+                cartItems: [],
+                promoCode: '',
+                paymentMethod: 'orange',
+
+                // Data
+                categories: [
+                    { id: 1, name: 'Électronique', icon: '📱', count: 25 },
+                    { id: 2, name: 'Mode Homme', icon: '👔', count: 35, parent: 'mode' },
+                    { id: 3, name: 'Mode Femme', icon: '👗', count: 48, parent: 'mode' },
+                    { id: 4, name: 'Mode Enfant', icon: '👶', count: 28, parent: 'mode' },
+                    { id: 5, name: 'Chaussures Homme', icon: '👞', count: 22, parent: 'chaussures' },
+                    { id: 6, name: 'Chaussures Femme', icon: '👠', count: 31, parent: 'chaussures' },
+                    { id: 7, name: 'Chaussures Enfant', icon: '👟', count: 18, parent: 'chaussures' },
+                    { id: 8, name: 'Maison', icon: '🏠', count: 18 },
+                    { id: 9, name: 'Sports', icon: '⚽', count: 15 },
+                    { id: 10, name: 'Beauté & Maquillage', icon: '💄', count: 32 },
+                    { id: 11, name: 'Livres', icon: '📚', count: 28 },
+                    { id: 12, name: 'Automobile', icon: '🚗', count: 12 },
+                    { id: 13, name: 'Alimentation', icon: '🍎', count: 55 },
+                    { id: 14, name: 'Habits Traditionnels', icon: '🥻', count: 24 }
+                ],
+
+                subCategories: {
+                    mode_homme: [
+                        { id: 201, name: 'Chemises', icon: '👔' },
+                        { id: 202, name: 'Pantalons', icon: '👖' },
+                        { id: 203, name: 'Vestes & Blazers', icon: '🧥' },
+                        { id: 204, name: 'T-shirts', icon: '👕' },
+                        { id: 205, name: 'Sous-vêtements', icon: '🩲' },
+                        { id: 206, name: 'Costumes', icon: '🤵' }
+                    ],
+                    mode_femme: [
+                        { id: 301, name: 'Robes', icon: '👗' },
+                        { id: 302, name: 'Robes de Mariage', icon: '👰' },
+                        { id: 303, name: 'Chemisiers', icon: '👚' },
+                        { id: 304, name: 'Pantalons & Jeans', icon: '👖' },
+                        { id: 305, name: 'Jupes', icon: '🩱' },
+                        { id: 306, name: 'Vestes & Blazers', icon: '🧥' },
+                        { id: 307, name: 'Sous-vêtements', icon: '👙' },
+                        { id: 308, name: 'Culottes', icon: '🩲' },
+                        { id: 309, name: 'Soutiens-gorge', icon: '👙' }
+                    ],
+                    mode_enfant: [
+                        { id: 401, name: 'Vêtements Bébé', icon: '👶' },
+                        { id: 402, name: 'T-shirts Enfant', icon: '👕' },
+                        { id: 403, name: 'Pantalons Enfant', icon: '👖' },
+                        { id: 404, name: 'Robes Filles', icon: '👗' },
+                        { id: 405, name: 'Uniforme Scolaire', icon: '🎒' }
+                    ],
+                    chaussures_homme: [
+                        { id: 501, name: 'Baskets', icon: '👟' },
+                        { id: 502, name: 'Souliers Classiques', icon: '👞' },
+                        { id: 503, name: 'Sandales', icon: '🩴' },
+                        { id: 504, name: 'Babouches', icon: '🥿' },
+                        { id: 505, name: 'Chaussures de Sport', icon: '👟' }
+                    ],
+                    chaussures_femme: [
+                        { id: 601, name: 'Talons Hauts', icon: '👠' },
+                        { id: 602, name: 'Ballerines', icon: '🥿' },
+                        { id: 603, name: 'Sandales', icon: '👡' },
+                        { id: 604, name: 'Baskets Femme', icon: '👟' },
+                        { id: 605, name: 'Babouches Femme', icon: '🥿' },
+                        { id: 606, name: 'Bottes', icon: '👢' }
+                    ],
+                    chaussures_enfant: [
+                        { id: 701, name: 'Baskets Enfant', icon: '👟' },
+                        { id: 702, name: 'Sandales Enfant', icon: '🩴' },
+                        { id: 703, name: 'Chaussures École', icon: '👞' }
+                    ]
+                },
+
+                brands: ['Samsung', 'Apple', 'Nike', 'Adidas', 'LG', 'Sony', 'Jordan', 'Puma', 'Reebok', 'Converse', 'Vans', 'New Balance', 'Louis Vuitton', 'Gucci', 'Zara', 'H&M', 'Chanel', 'Dior', 'Local Guinea'],
+
+                shoesBrands: {
+                    popular: ['Nike', 'Adidas', 'Jordan', 'Puma', 'Reebok', 'Converse', 'Vans', 'New Balance'],
+                    luxury: ['Louis Vuitton', 'Gucci', 'Christian Louboutin', 'Jimmy Choo', 'Balenciaga'],
+                    local: ['Babouches Guinéennes', 'Sandales Artisanales', 'Chaussures Locales']
+                },
+
+                products: [
+                    // Électronique
+                    { id: 1, name: 'Smartphone Samsung Galaxy', category: 1, price: 800000, originalPrice: 950000, discount: 15, brand: 'Samsung', description: 'Smartphone haut de gamme avec écran AMOLED', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 3, name: 'Casque Audio Sony', category: 1, price: 250000, originalPrice: 300000, discount: 17, brand: 'Sony', description: 'Casque sans fil avec réduction de bruit', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 5, name: 'Laptop Dell Inspiron', category: 1, price: 1200000, originalPrice: 1400000, discount: 14, brand: 'Dell', description: 'Ordinateur portable pour professionnels', image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 9, name: 'Télévision LG 55 pouces', category: 1, price: 1800000, originalPrice: 2100000, discount: 14, brand: 'LG', description: 'Smart TV 4K HDR', image: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 11, name: 'Montre Apple Watch', category: 1, price: 450000, originalPrice: 520000, discount: 13, brand: 'Apple', description: 'Montre connectée dernière génération', image: 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=400&h=300&fit=crop', wishlist: false },
+                    
+                    // Mode Homme
+                    { id: 13, name: 'Chemise Homme Classique', category: 2, price: 85000, brand: 'Zara', description: 'Chemise en coton premium pour homme', image: 'https://images.unsplash.com/photo-1594938323293-6fc8e7c3a3ac?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 14, name: 'Pantalon Costume Homme', category: 2, price: 125000, originalPrice: 150000, discount: 17, brand: 'H&M', description: 'Pantalon de costume élégant', image: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 15, name: 'Veste Blazer Homme', category: 2, price: 200000, brand: 'Local Guinea', description: 'Blazer moderne pour occasions spéciales', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 16, name: 'T-shirt Nike Premium Homme', category: 2, price: 75000, brand: 'Nike', description: 'T-shirt en coton bio confortable', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 17, name: 'Sous-vêtements Homme Pack', category: 2, price: 45000, brand: 'Local Guinea', description: 'Pack de 3 sous-vêtements en coton', image: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&h=300&fit=crop', wishlist: false },
+                    
+                    // Mode Femme
+                    { id: 18, name: 'Robe Africaine Moderne', category: 3, price: 120000, brand: 'Local Guinea', description: 'Robe traditionnelle revisitée', image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 19, name: 'Robe de Mariage Blanche', category: 3, price: 850000, originalPrice: 1000000, discount: 15, brand: 'Chanel', description: 'Robe de mariée élégante avec dentelle', image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 20, name: 'Chemisier Femme Satin', category: 3, price: 95000, brand: 'Zara', description: 'Chemisier élégant en satin', image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 21, name: 'Jean Femme Slim', category: 3, price: 110000, brand: 'H&M', description: 'Jean slim fit confortable', image: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 22, name: 'Ensemble Sous-vêtements Femme', category: 3, price: 65000, brand: 'Local Guinea', description: 'Ensemble soutien-gorge et culotte', image: 'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 23, name: 'Veste Blazer Femme', category: 3, price: 180000, brand: 'Gucci', description: 'Blazer féminin chic et moderne', image: 'https://images.unsplash.com/photo-1551048632-27eca7e49fbb?w=400&h=300&fit=crop', wishlist: false },
+                    
+                    // Mode Enfant
+                    { id: 24, name: 'T-shirt Enfant Coloré', category: 4, price: 35000, brand: 'H&M', description: 'T-shirt amusant pour enfants', image: 'https://images.unsplash.com/photo-1503944583220-79d8926ad5ee?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 25, name: 'Robe Fille Princesse', category: 4, price: 75000, originalPrice: 90000, discount: 17, brand: 'Zara', description: 'Robe de princesse pour petite fille', image: 'https://images.unsplash.com/photo-1621452773781-0f992fd1f5ba?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 26, name: 'Uniforme Scolaire Complet', category: 4, price: 125000, brand: 'Local Guinea', description: 'Uniforme scolaire complet (chemise + pantalon)', image: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&h=300&fit=crop', wishlist: false },
+                    
+                    // Chaussures Homme
+                    { id: 27, name: 'Baskets Nike Air Jordan', category: 5, price: 320000, originalPrice: 380000, discount: 16, brand: 'Jordan', description: 'Baskets légendaires Air Jordan', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 28, name: 'Souliers Classiques Cuir', category: 5, price: 180000, brand: 'Louis Vuitton', description: 'Souliers en cuir véritable pour homme', image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 29, name: 'Sandales Homme Cuir', category: 5, price: 95000, brand: 'Local Guinea', description: 'Sandales artisanales en cuir', image: 'https://images.unsplash.com/photo-1603808033192-082d6919d3e1?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 30, name: 'Babouches Traditionnelles', category: 5, price: 65000, brand: 'Babouches Guinéennes', description: 'Babouches traditionnelles guinéennes', image: 'https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 31, name: 'Baskets Adidas Ultraboost', category: 5, price: 250000, brand: 'Adidas', description: 'Baskets de running haute performance', image: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&h=300&fit=crop', wishlist: false },
+                    
+                    // Chaussures Femme
+                    { id: 32, name: 'Talons Hauts Élégants', category: 6, price: 145000, originalPrice: 170000, discount: 15, brand: 'Christian Louboutin', description: 'Talons hauts pour occasions spéciales', image: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 33, name: 'Ballerines Confort Femme', category: 6, price: 85000, brand: 'H&M', description: 'Ballerines confortables pour tous les jours', image: 'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 34, name: 'Sandales Femme Été', category: 6, price: 75000, brand: 'Zara', description: 'Sandales légères pour l\'été', image: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 35, name: 'Baskets Nike Femme', category: 6, price: 180000, brand: 'Nike', description: 'Baskets sportives pour femme', image: 'https://images.unsplash.com/photo-1592338873269-765ad9c875fc?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 36, name: 'Bottes Femme Cuir', category: 6, price: 220000, brand: 'Gucci', description: 'Bottes en cuir haute qualité', image: 'https://images.unsplash.com/photo-1544966503-7cc5ac882d5a?w=400&h=300&fit=crop', wishlist: false },
+                    
+                    // Chaussures Enfant
+                    { id: 37, name: 'Baskets Enfant Converse', category: 7, price: 95000, brand: 'Converse', description: 'Baskets iconiques pour enfants', image: 'https://images.unsplash.com/photo-1607522370275-f14206abe5d3?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 38, name: 'Sandales Enfant Été', category: 7, price: 55000, originalPrice: 65000, discount: 15, brand: 'Local Guinea', description: 'Sandales colorées pour enfants', image: 'https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 39, name: 'Chaussures École Enfant', category: 7, price: 85000, brand: 'Local Guinea', description: 'Chaussures robustes pour l\'école', image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop', wishlist: false },
+                    
+                    // Beauté & Maquillage
+                    { id: 40, name: 'Parfum Chanel N°5', category: 10, price: 350000, brand: 'Chanel', description: 'Parfum féminin iconique', image: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 41, name: 'Palette Maquillage Pro', category: 10, price: 125000, originalPrice: 150000, discount: 17, brand: 'Dior', description: 'Palette complète pour maquillage professionnel', image: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 42, name: 'Crème Visage Anti-âge', category: 10, price: 95000, brand: 'Local Guinea', description: 'Crème à base d\'ingrédients naturels guinéens', image: 'https://images.unsplash.com/photo-1570194065650-d99c4d240f56?w=400&h=300&fit=crop', wishlist: false },
+                    
+                    // Habits Traditionnels
+                    { id: 43, name: 'Boubou Homme Traditionnel', category: 14, price: 180000, brand: 'Local Guinea', description: 'Boubou traditionnel guinéen brodé', image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 44, name: 'Ensemble Femme Traditionnel', category: 14, price: 220000, originalPrice: 260000, discount: 15, brand: 'Local Guinea', description: 'Ensemble traditionnel guinéen pour femme', image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 45, name: 'Pagne Wax Authentique', category: 14, price: 65000, brand: 'Local Guinea', description: 'Pagne wax traditionnel africain', image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=400&h=300&fit=crop', wishlist: false },
+                    
+                    // Autres
+                    { id: 46, name: 'Sac à Main Cuir', category: 3, price: 95000, brand: 'Local Guinea', description: 'Sac en cuir véritable fait main', image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 47, name: 'Chaise Bureau Ergonomique', category: 8, price: 280000, brand: 'Office Pro', description: 'Chaise de bureau avec support lombaire', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop', wishlist: false },
+                    { id: 48, name: 'Livre "L\'Histoire de la Guinée"', category: 11, price: 45000, brand: 'Edition Locale', description: 'Livre sur l\'histoire de notre pays', image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&h=300&fit=crop', wishlist: false }
+                ],
+
+                customers: [
+                    { id: 1, name: 'Mamadou Diallo', email: 'mamadou@example.com', phone: '+224 XXX XX XX XX', orders: 5, total: 850000 },
+                    { id: 2, name: 'Fatoumata Camara', email: 'fatoumata@example.com', phone: '+224 XXX XX XX XX', orders: 3, total: 420000 },
+                    { id: 3, name: 'Alpha Condé', email: 'alpha@example.com', phone: '+224 XXX XX XX XX', orders: 8, total: 1200000 },
+                    { id: 4, name: 'Aissatou Bah', email: 'aissatou@example.com', phone: '+224 XXX XX XX XX', orders: 2, total: 180000 }
+                ],
+
+                // Computed Properties
+                get featuredProducts() {
+                    return this.products.filter(p => p.discount).slice(0, 8);
+                },
+
+                get filteredProducts() {
+                    let filtered = [...this.products];
+
+                    // Category filter
+                    if (this.selectedCategory) {
+                        filtered = filtered.filter(p => p.category === this.selectedCategory);
+                    }
+
+                    // Search filter
+                    if (this.searchQuery) {
+                        filtered = filtered.filter(p => 
+                            p.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                            p.description.toLowerCase().includes(this.searchQuery.toLowerCase())
+                        );
+                    }
+
+                    // Price filter
+                    if (this.priceFilter !== 'all') {
+                        const [min, max] = this.priceFilter.includes('+') 
+                            ? [parseInt(this.priceFilter.replace('+', '')), Infinity]
+                            : this.priceFilter.split('-').map(Number);
+                        filtered = filtered.filter(p => p.price >= min && (max === Infinity || p.price <= max));
+                    }
+
+                    // Brand filter
+                    if (this.brandFilters.length > 0) {
+                        filtered = filtered.filter(p => this.brandFilters.includes(p.brand));
+                    }
+
+                    // Sort
+                    filtered.sort((a, b) => {
+                        switch (this.sortBy) {
+                            case 'price': return a.price - b.price;
+                            case 'price-desc': return b.price - a.price;
+                            case 'newest': return b.id - a.id;
+                            default: return a.name.localeCompare(b.name);
+                        }
+                    });
+
+                    return filtered;
+                },
+
+                get cartTotal() {
+                    return this.cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+                },
+
+                // Methods
+                filterByCategory(categoryId) {
+                    this.selectedCategory = categoryId;
+                    this.currentView = 'products';
+                },
+
+                getCategoryName(categoryId) {
+                    const category = this.categories.find(c => c.id === categoryId);
+                    return category ? category.name : '';
+                },
+
+                searchProducts() {
+                    if (this.searchQuery.length > 0) {
+                        this.searchResults = this.products.filter(p => 
+                            p.name.toLowerCase().includes(this.searchQuery.toLowerCase())
+                        );
+                    } else {
+                        this.searchResults = [];
+                    }
+                },
+
+                goToProduct(product) {
+                    this.selectedProduct = product;
+                    this.currentView = 'product-detail';
+                    this.searchQuery = '';
+                    this.searchResults = [];
+                },
+
+                viewProduct(product) {
+                    this.selectedProduct = product;
+                    this.currentView = 'product-detail';
+                },
+
+                addToCart(product, quantity = 1) {
+                    const existingItem = this.cartItems.find(item => item.id === product.id);
+                    
+                    if (existingItem) {
+                        existingItem.quantity += quantity;
+                    } else {
+                        this.cartItems.push({ ...product, quantity });
+                    }
+
+                    this.cartAnimation = true;
+                    setTimeout(() => this.cartAnimation = false, 600);
+                    
+                    this.showMessage(`${product.name} ajouté au panier`);
+                },
+
+                removeFromCart(index) {
+                    this.cartItems.splice(index, 1);
+                    this.showMessage('Produit retiré du panier');
+                },
+
+                updateCartQuantity(index, newQuantity) {
+                    if (newQuantity <= 0) {
+                        this.removeFromCart(index);
+                    } else {
+                        this.cartItems[index].quantity = newQuantity;
+                    }
+                },
+
+                toggleWishlist(product) {
+                    product.wishlist = !product.wishlist;
+                    const message = product.wishlist ? 'Ajouté aux favoris' : 'Retiré des favoris';
+                    this.showMessage(message);
+                },
+
+                applyPromoCode() {
+                    if (this.promoCode.toLowerCase() === 'welcome10') {
+                        this.showMessage('Code promo appliqué: -10%');
+                    } else {
+                        this.showMessage('Code promo invalide');
+                    }
+                },
+
+                processOrder() {
+                    this.showMessage('Commande confirmée! Merci pour votre achat.');
+                    this.cartItems = [];
+                    this.currentView = 'home';
+                },
+
+                resetFilters() {
+                    this.priceFilter = 'all';
+                    this.brandFilters = [];
+                    this.selectedCategory = null;
+                    this.searchQuery = '';
+                },
+
+                showMessage(message) {
+                    this.successMessage = message;
+                    this.showSuccessMessage = true;
+                    setTimeout(() => this.showSuccessMessage = false, 3000);
+                },
+
+                formatPrice(price) {
+                    return new Intl.NumberFormat('fr-GN', {
+                        style: 'currency',
+                        currency: 'GNF',
+                        minimumFractionDigits: 0
+                    }).format(price);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
